@@ -15,6 +15,5 @@
 #include "properties.hxx"
 #include "modularity.hxx"
 #include "random.hxx"
-#include "rak.hxx"
-#include "rakSeq.hxx"
-#include "rakOmp.hxx"
+#include "copra.hxx"
+#include "copraSeq.hxx"
