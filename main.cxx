@@ -23,7 +23,7 @@ using namespace std;
 
 
 template <class G, class K, class V>
-double getModularity(const G& x, const RakResult<K>& a, V M) {
+double getModularity(const G& x, const CopraResult<K>& a, V M) {
   auto fc = [&](auto u) { return a.membership[u]; };
   return modularityBy(x, fc, M, V(1));
 }
@@ -37,7 +37,7 @@ void runExperiment(const G& x, int repeat) {
   auto M = edgeWeight(x)/2;
   auto Q = modularity(x, M, 1.0f);
   printf("[%01.6f modularity] noop\n", Q);
-  RakOptions o = {repeat};
+  CopraOptions o = {repeat};
 
   for (int i=0, f=10; f<=10000; f*=i&1? 5:2, ++i) {
     float tolerance = 1.0f / f;
