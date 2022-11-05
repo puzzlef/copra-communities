@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-src="rak-communities-openmp"
+src="copra-communities-seq"
 out="/home/resources/Documents/subhajit/$src.log"
 ulimit -s unlimited
 printf "" > "$out"

@@ -1,7 +1,7 @@
-# https://www.kaggle.com/wolfram77/puzzlef-rak-communities-openmp
+# https://www.kaggle.com/wolfram77/puzzlef-copra-communities-seq
 import os
 from IPython.display import FileLink
-src="rak-communities-openmp"
+src="copra-communities-seq"
 inp="/kaggle/input/graphs"
 out="{}.txt".format(src)
 !printf "" > "$out"
