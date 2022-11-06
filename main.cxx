@@ -35,14 +35,14 @@ void runExperiment(const G& x, int repeat) {
   printf("[%01.6f modularity] noop\n", Q);
   CopraOptions o = {repeat};
 
-  for (int i=0, f=10; f<=10000; f*=i&1? 5:2, ++i) {
+  for (int i=0, f=5; f<=10000; f*=i&1? 5:2, ++i) {
     float tolerance = 1.0f / f;
-    // Find COPRA using a single thread (non-strict).
+    // Find COPRA using a single thread (synchronous).
     auto ak = copraSeqStatic<8, false>(x, init, {repeat, tolerance});
-    printf("[%09.3f ms; %04d iters.; %01.9f modularity] copraSeqStatic       {tolerance=%.0e}\n", ak.time, ak.iterations, getModularity(x, ak, M), tolerance);
-    // Find COPRA using a single thread (strict).
+    printf("[%09.3f ms; %04d iters.; %01.9f modularity] copraSeqStatic      {tolerance=%.0e}\n", ak.time, ak.iterations, getModularity(x, ak, M), tolerance);
+    // Find COPRA using a single thread (asynchronous).
     auto al = copraSeqStatic<8, true>(x, init, {repeat, tolerance});
-    printf("[%09.3f ms; %04d iters.; %01.9f modularity] copraSeqStaticStrict {tolerance=%.0e}\n", al.time, al.iterations, getModularity(x, al, M), tolerance);
+    printf("[%09.3f ms; %04d iters.; %01.9f modularity] copraSeqStaticAsync {tolerance=%.0e}\n", al.time, al.iterations, getModularity(x, al, M), tolerance);
   }
 }
 

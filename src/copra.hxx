@@ -1,4 +1,5 @@
 #pragma once
+#include <limits>
 #include <utility>
 #include <vector>
 #include "_main.hxx"
@@ -6,6 +7,7 @@
 using std::pair;
 using std::tuple;
 using std::vector;
+using std::numeric_limits;
 using std::make_pair;
 using std::move;
 using std::get;
@@ -141,8 +143,8 @@ inline void copraSortScan(vector<K>& vcs, const vector<V>& vcout) {
 
 /**
  * Clear communities scan data.
- * @param vcs total edge weight from vertex u to community C (updated)
- * @param vcout communities vertex u is linked to (updated)
+ * @param vcs communities vertex u is linked to (updated)
+ * @param vcout total edge weight from vertex u to community C (updated)
  */
 template <class K, class V>
 inline void copraClearScan(vector<K>& vcs, vector<V>& vcout) {
@@ -183,6 +185,57 @@ inline void copraChooseCommunity(Labelset<K, V, L>& a, K u, const vector<K>& vcs
   // 4. If no label, use your own label (join your own community).
   if (n==0) labs[0] = {u, 1};
   a = labs;
+}
+
+
+
+
+// COPRA-COUNT-COMMUNITIES
+// -----------------------
+
+/**
+ * Count number of vertices belonging to each community.
+ * @param gcs list of communities (updated)
+ * @param gcnum number of vertices belonging to respective community (updated)
+ * @param x original graph
+ * @param vcom community set each vertex belongs to
+ */
+template <class G, class K, class V, size_t L>
+inline void copraCountCommunities(vector<K>& gcs, vector<K>& gcnum, const G& x, const vector<Labelset<K, V, L>>& vcom) {
+  x.forEachVertexKey([&](auto u) {
+    for (const auto& [c, b] : vcom[u]) {
+      if (!b) break;
+      if (!gcnum[c]) gcs.push_back(c);
+      ++gcnum[c];
+    }
+  });
+}
+
+
+/**
+ * Clear communities count data.
+ * @param gcs list of communities (updated)
+ * @param gcnum number of vertices belonging to respective community (updated)
+ */
+template <class K>
+inline void copraClearCount(vector<K>& gcs, vector<K>& gcnum) {
+  for (K c : gcs)
+    gcnum[c] = K();
+  gcs.clear();
+}
+
+
+/**
+ * Get minimum community count.
+ * @param gcs list of communities (updated)
+ * @param gcnum number of vertices belonging to respective community (updated)
+ */
+template <class K>
+inline K copraMinCount(vector<K> gcs, vector<K>& gcnum) {
+  K min = numeric_limits<K>::max();
+  for (K c : gcs)
+    min = min <= gcnum[c]? min : gcnum[c];
+  return min;
 }
 
 
