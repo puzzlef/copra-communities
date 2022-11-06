@@ -136,7 +136,7 @@ inline void copraScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K
  */
 template <class K, class V>
 inline void copraSortScan(vector<K>& vcs, const vector<V>& vcout) {
-  auto fl = [&](auto c, auto d) { return vcout[c] < vcout[d]; };
+  auto fl = [&](auto c, auto d) { return vcout[c] > vcout[d]; };
   sortValues(vcs, fl);
 }
 
