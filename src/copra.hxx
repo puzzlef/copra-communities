@@ -161,11 +161,11 @@ inline void copraClearScan(vector<K>& vcs, vector<V>& vcout) {
  * @param vcom community each vertex belongs to
  * @param vcs communities vertex u is linked to
  * @param vcout total edge weight from vertex u to community C
+ * @param W edge weight threshold above which communities are chosen
  * @returns [best community, best edge weight to community]
  */
 template <bool STRICT=false, class G, class K, class V, size_t L>
-inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<Labelset<K, V, L>>& vcom, const vector<K>& vcs, const vector<V>& vcout) {
-  K d = vcom[u][0].first;
+inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<Labelset<K, V, L>>& vcom, const vector<K>& vcs, const vector<V>& vcout, V W) {
   K cmax = K();
   V wmax = V();
   for (K c : vcs) {
