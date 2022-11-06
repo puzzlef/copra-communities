@@ -37,8 +37,9 @@ K copraMoveIteration(vector<K>& vcs, vector<V>& vcout, vector<Labelset<K, V, L>>
     copraClearScan(vcs, vcout);
     copraScanCommunities(vcs, vcout, x, u, vcom);
     copraSortScan(vcs, vcout);
-    auto [c, w] = copraChooseCommunity<STRICT>(x, u, vcom, vcs, vcout, V(1));
-    if (c && c!=d) { vcom[u] = {make_pair(c, V(1))}; ++a; fp(u); }
+    vcom[u] = copraChooseCommunity(x, u, vcom, vcs, vcout, V(1));
+    K c = vcom[u][0].first;
+    if (c!=d) { ++a; fp(u); }
   });
   return a;
 }

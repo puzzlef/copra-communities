@@ -164,21 +164,21 @@ inline void copraClearScan(vector<K>& vcs, vector<V>& vcout) {
  * @param W edge weight threshold above which communities are chosen
  * @returns [best community, best edge weight to community]
  */
-template <bool STRICT=false, class G, class K, class V, size_t L>
-inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<Labelset<K, V, L>>& vcom, const vector<K>& vcs, const vector<V>& vcout, V W) {
+template <class G, class K, class V, size_t L>
+inline Labelset<K, V, L> copraChooseCommunity(const G& x, K u, const vector<Labelset<K, V, L>>& vcom, const vector<K>& vcs, const vector<V>& vcout, V W) {
   K n = K(); V w = V();
   Labelset<K, V, L> labs;
-  // if (vcs.empty()) return make_pair(u, V(1));  // TODO? enable
   // 1. Find labels above threshold, or best below threshold.
   for (K c : vcs) {
-    if (n>0 && vcout[c]<W) break;
+    if (n>K() && vcout[c]<W) break;
     labs[n++] = {c, vcout[c]};
     w += vcout[c];
   }
   // 2. Normalize labels, such that belonging coefficient sums to 1.
   for (K i=0; i<n; ++i)
     labs[i].second /= w;
-  return labs[0];
+  if (!n) labs[0] = make_pair(u, V(1));
+  return labs;
 }
 
 
