@@ -13,42 +13,42 @@ using std::get;
 
 
 
-// RAK-OPTIONS
-// -----------
+// COPRA-OPTIONS
+// -------------
 
-struct RakOptions {
+struct CopraOptions {
   int   repeat;
   float tolerance;
   int   maxIterations;
 
-  RakOptions(int repeat=1, float tolerance=0.05, int maxIterations=20) :
+  CopraOptions(int repeat=1, float tolerance=0.05, int maxIterations=20) :
   repeat(repeat), tolerance(tolerance), maxIterations(maxIterations) {}
 };
 
 
 
 
-// RAK-RESULT
-// ----------
+// COPRA-RESULT
+// ------------
 
 template <class K>
-struct RakResult {
+struct CopraResult {
   vector<K> membership;
   int   iterations;
   float time;
 
-  RakResult(vector<K>&& membership, int iterations=0, float time=0) :
+  CopraResult(vector<K>&& membership, int iterations=0, float time=0) :
   membership(membership), iterations(iterations), time(time) {}
 
-  RakResult(vector<K>& membership, int iterations=0, float time=0) :
+  CopraResult(vector<K>& membership, int iterations=0, float time=0) :
   membership(move(membership)), iterations(iterations), time(time) {}
 };
 
 
 
 
-// RAK-INITIALIZE
-// --------------
+// COPRA-INITIALIZE
+// ----------------
 
 /**
  * Initialize communities such that each vertex is its own community.
@@ -56,15 +56,15 @@ struct RakResult {
  * @param x original graph
  */
 template <class G, class K>
-inline void rakInitialize(vector<K>& vcom, const G& x) {
+inline void copraInitialize(vector<K>& vcom, const G& x) {
   x.forEachVertexKey([&](auto u) { vcom[u] = u; });
 }
 
 
 
 
-// RAK-CHOOSE-COMMUNITY
-// --------------------
+// COPRA-CHOOSE-COMMUNITY
+// ----------------------
 
 /**
  * Scan an edge community connected to a vertex.
@@ -76,7 +76,7 @@ inline void rakInitialize(vector<K>& vcom, const G& x) {
  * @param vcom community each vertex belongs to
  */
 template <bool SELF=false, class K, class V>
-inline void rakScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const vector<K>& vcom) {
+inline void copraScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const vector<K>& vcom) {
   if (!SELF && u==v) return;
   K c = vcom[v];
   if (!vcout[c]) vcs.push_back(c);
@@ -93,8 +93,8 @@ inline void rakScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, co
  * @param vcom community each vertex belongs to
  */
 template <bool SELF=false, class G, class K, class V>
-inline void rakScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K u, const vector<K>& vcom) {
-  x.forEachEdge(u, [&](auto v, auto w) { rakScanCommunity<SELF>(vcs, vcout, u, v, w, vcom); });
+inline void copraScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K u, const vector<K>& vcom) {
+  x.forEachEdge(u, [&](auto v, auto w) { copraScanCommunity<SELF>(vcs, vcout, u, v, w, vcom); });
 }
 
 
@@ -104,7 +104,7 @@ inline void rakScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K u
  * @param vcout communities vertex u is linked to (updated)
  */
 template <class K, class V>
-inline void rakClearScan(vector<K>& vcs, vector<V>& vcout) {
+inline void copraClearScan(vector<K>& vcs, vector<V>& vcout) {
   for (K c : vcs)
     vcout[c] = V();
   vcs.clear();
@@ -121,7 +121,7 @@ inline void rakClearScan(vector<K>& vcs, vector<V>& vcout) {
  * @returns [best community, best edge weight to community]
  */
 template <bool STRICT=false, class G, class K, class V>
-inline pair<K, V> rakChooseCommunity(const G& x, K u, const vector<K>& vcom, const vector<K>& vcs, const vector<V>& vcout) {
+inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<K>& vcom, const vector<K>& vcs, const vector<V>& vcout) {
   K d = vcom[u];
   K cmax = K();
   V wmax = V();
@@ -135,8 +135,8 @@ inline pair<K, V> rakChooseCommunity(const G& x, K u, const vector<K>& vcom, con
 
 
 
-// RAK-AFFECTED-VERTICES-DELTA-SCREENING
-// -------------------------------------
+// COPRA-AFFECTED-VERTICES-DELTA-SCREENING
+// ---------------------------------------
 // Using delta-screening approach.
 // - All edge batches are undirected, and sorted by source vertex-id.
 // - For edge additions across communities with source vertex `i` and highest modularity changing edge vertex `j*`,
@@ -153,7 +153,7 @@ inline pair<K, V> rakChooseCommunity(const G& x, K u, const vector<K>& vcom, con
  * @returns flags for each vertex marking whether it is affected
  */
 template <bool STRICT=false, class FLAG=bool, class G, class K, class V>
-auto rakAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
+auto copraAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
   K S = x.span();
   vector<K> vcs; vector<V> vcout(S);
   vector<FLAG> vertices(S), neighbors(S), communities(S);
@@ -165,14 +165,14 @@ auto rakAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& de
   }
   for (size_t i=0; i<insertions.size();) {
     K u = get<0>(insertions[i]);
-    rakClearScan(vcs, vcout);
+    copraClearScan(vcs, vcout);
     for (; i<insertions.size() && get<0>(insertions[i])==u; ++i) {
       K v = get<1>(insertions[i]);
       V w = get<2>(insertions[i]);
       if (vcom[u] == vcom[v]) continue;
-      rakScanCommunity(vcs, vcout, u, v, w, vcom);
+      copraScanCommunity(vcs, vcout, u, v, w, vcom);
     }
-    auto [c, w] = rakChooseCommunity<STRICT>(x, u, vcom, vcs, vcout);
+    auto [c, w] = copraChooseCommunity<STRICT>(x, u, vcom, vcs, vcout);
     if (!c || c == vcom[u]) continue;
     vertices[u]  = true;
     neighbors[u] = true;
@@ -188,8 +188,8 @@ auto rakAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& de
 
 
 
-// RAK-AFFECTED-VERTICES-FRONTIER
-// ------------------------------
+// COPRA-AFFECTED-VERTICES-FRONTIER
+// --------------------------------
 // Using frontier based approach.
 // - All source and destination vertices are marked as affected for insertions and deletions.
 // - For edge additions across communities with source vertex `i` and destination vertex `j`,
@@ -207,7 +207,7 @@ auto rakAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& de
  * @returns flags for each vertex marking whether it is affected
  */
 template <class FLAG=bool, class G, class K, class V>
-auto rakAffectedVerticesFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
+auto copraAffectedVerticesFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
   K S = x.span();
   vector<FLAG> vertices(S);
   for (const auto& [u, v] : deletions) {
