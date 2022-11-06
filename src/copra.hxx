@@ -130,9 +130,21 @@ inline void copraScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K
 
 
 /**
+ * Sort communities scan data by total edge weight / belongingness.
+ * @param vcs communities vertex u is linked to (updated)
+ * @param vcout total edge weight from vertex u to community C (updated)
+ */
+template <class K, class V>
+inline void copraSortScan(vector<K>& vcs, const vector<V>& vcout) {
+  auto fl = [&](auto c, auto d) { return vcout[c] < vcout[d]; };
+  sortValues(vcs, fl);
+}
+
+
+/**
  * Clear communities scan data.
- * @param vcs total edge weight from vertex u to community C (updated)
- * @param vcout communities vertex u is linked to (updated)
+ * @param vcs communities vertex u is linked to (updated)
+ * @param vcout total edge weight from vertex u to community C (updated)
  */
 template <class K, class V>
 inline void copraClearScan(vector<K>& vcs, vector<V>& vcout) {
