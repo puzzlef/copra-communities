@@ -107,9 +107,11 @@ inline void copraInitialize(vector<Labelset<K, V, L>>& vcom, const G& x) {
 template <bool SELF=false, class K, class V, size_t L>
 inline void copraScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const vector<Labelset<K, V, L>>& vcom) {
   if (!SELF && u==v) return;
-  K c = vcom[v][0].first;
-  if (!vcout[c]) vcs.push_back(c);
-  vcout[c] += w;
+  for (const auto& [c, b] : vcom[v]) {
+    if (!b) break;
+    if (!vcout[c]) vcs.push_back(c);
+    vcout[c] += w*b;
+  }
 }
 
 
