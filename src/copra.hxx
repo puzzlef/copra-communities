@@ -16,17 +16,17 @@ using std::get;
 // COPRA-OPTIONS
 // -------------
 
-// Labels (max. community memberships) per vertex.
-#define COPRA_LABELS 8
+// Maximum community memberships per vertex.
+#define COPRA_MAX_MEMBERSHIP 8
+
 
 struct CopraOptions {
   int   repeat;
   float tolerance;
-  int   maxMembership;
   int   maxIterations;
 
-  CopraOptions(int repeat=1, float tolerance=0.05, int maxMembership=COPRA_LABELS, int maxIterations=20) :
-  repeat(repeat), tolerance(tolerance), maxMembership(maxMembership), maxIterations(maxIterations) {}
+  CopraOptions(int repeat=1, float tolerance=0.05, int maxIterations=20) :
+  repeat(repeat), tolerance(tolerance), maxIterations(maxIterations) {}
 };
 
 
@@ -54,7 +54,7 @@ struct CopraResult {
 // LABELSET
 // --------
 
-template <class K, class V, size_t L=COPRA_LABELS>
+template <class K, class V, size_t L>
 using Labelset = array<pair<K, V>, L>;
 
 
@@ -105,7 +105,7 @@ inline void copraInitialize(vector<Labelset<K, V, L>>& vcom, const G& x) {
 template <bool SELF=false, class K, class V, size_t L>
 inline void copraScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const vector<Labelset<K, V, L>>& vcom) {
   if (!SELF && u==v) return;
-  for (const auto& [c, b] : vcom[u]) {
+  for (const auto& [c, b] : vcom[v]) {
     if (!b) break;
     if (!vcout[c]) vcs.push_back(c);
     vcout[c] += w*b;
@@ -132,9 +132,9 @@ inline void copraScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K
  * @param vcs communities vertex u is linked to (updated)
  * @param vcout total edge weight from vertex u to community C (updated)
  */
-template <bool STRICT=false, class K, class V>
+template <class K, class V>
 inline void copraSortScan(vector<K>& vcs, const vector<V>& vcout) {
-  auto fl = [&](auto c, auto d) { return vcout[c]<vcout[d] || (!STRICT && vcout[c]==vcout[d] && ((c ^ d) & 2)); };
+  auto fl = [&](auto c, auto d) { return vcout[c] < vcout[d]; };
   sortValues(vcs, fl);
 }
 
@@ -159,7 +159,6 @@ inline void copraClearScan(vector<K>& vcs, vector<V>& vcout) {
  * @param vcs communities vertex u is linked to
  * @param vcout total edge weight from vertex u to community C
  * @param WTH edge weight threshold above which communities are chosen
- * @returns [best community, best edge weight to community]
  */
 template <class K, class V, size_t L>
 inline void copraChooseCommunity(Labelset<K, V, L>& a, K u, const vector<K>& vcs, const vector<V>& vcout, V WTH) {

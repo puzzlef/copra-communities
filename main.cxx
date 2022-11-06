@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   using K = int;
   using V = TYPE;
   char *file = argv[1];
-  int repeat = argc>2? stoi(argv[2]) : 5;
+  int repeat = argc>2? stoi(argv[2]) : 1;
   OutDiGraph<K, None, V> x;  // V w = 1;
   printf("Loading graph %s ...\n", file);
   readMtxW<true>(x, file); println(x);
