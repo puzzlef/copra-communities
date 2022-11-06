@@ -184,6 +184,57 @@ inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<Labelset<K,
 
 
 
+// COPRA-COUNT-COMMUNITIES
+// -----------------------
+
+/**
+ * Count number of vertices belonging to each community.
+ * @param gcs list of communities (updated)
+ * @param gcnum number of vertices belonging to respective community (updated)
+ * @param x original graph
+ * @param vcom community set each vertex belongs to
+ */
+template <class G, class K, class V, size_t L>
+inline void copraCountCommunities(vector<K>& gcs, vector<K>& gcnum, const G& x, const vector<Labelset<K, V, L>>& vcom) {
+  x.forEachVertexKey([&](auto u) {
+    for (const auto& [c, b] : vcom[u]) {
+      if (!b) break;
+      if (!gcnum[c]) gcs.push_back(c);
+      ++gcnum[c];
+    }
+  });
+}
+
+
+/**
+ * Clear communities count data.
+ * @param gcs list of communities (updated)
+ * @param gcnum number of vertices belonging to respective community (updated)
+ */
+template <class K>
+inline void copraClearCount(vector<K>& gcs, vector<K>& gcnum) {
+  for (K c : gcs)
+    gcnum[c] = K();
+  gcs.clear();
+}
+
+
+/**
+ * Get minimum community count.
+ * @param gcs list of communities (updated)
+ * @param gcnum number of vertices belonging to respective community (updated)
+ */
+template <class K>
+inline K copraMinCount(vector<K> gcs, vector<K>& gcnum) {
+  K min = numeric_limits<K>::max();
+  for (K c : gcs)
+    min = min <= gcnum[c]? min : gcnum[c];
+  return min;
+}
+
+
+
+
 // COPRA-BEST-COMMUNITIES
 // ----------------------
 
