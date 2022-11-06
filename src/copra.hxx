@@ -264,38 +264,47 @@ inline vector<K> copraBestCommunities(const vector<Labelset<K, V, L>>& vcom) {
  * @param x original graph
  * @param deletions edge deletions for this batch update (undirected, sorted by source vertex id)
  * @param insertions edge insertions for this batch update (undirected, sorted by source vertex id)
- * @param vcom community each vertex belongs to
+ * @param vcom community set each vertex belongs to
+ * @param vtot total edge weight of each vertex
+ * @param B belonging coefficient threshold
  * @returns flags for each vertex marking whether it is affected
  */
-template <bool STRICT=false, class FLAG=bool, class G, class K, class V>
-auto copraAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
+template <class FLAG=bool, class G, class K, class V, size_t L>
+auto copraAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<Labelset<K, V, L>>& vcom, const vector<V>& vtot, V B) {
   K S = x.span();
   vector<K> vcs; vector<V> vcout(S);
   vector<FLAG> vertices(S), neighbors(S), communities(S);
   for (const auto& [u, v] : deletions) {
-    if (vcom[u] != vcom[v]) continue;
+    K cu = vcom[u][0].first;
+    K cv = vcom[v][0].first;
+    if (cu!=cv) continue;
     vertices[u]  = true;
     neighbors[u] = true;
-    communities[vcom[v]] = true;
+    communities[cv] = true;
   }
   for (size_t i=0; i<insertions.size();) {
     K u = get<0>(insertions[i]);
     copraClearScan(vcs, vcout);
     for (; i<insertions.size() && get<0>(insertions[i])==u; ++i) {
-      K v = get<1>(insertions[i]);
-      V w = get<2>(insertions[i]);
-      if (vcom[u] == vcom[v]) continue;
+      K v  = get<1>(insertions[i]);
+      V w  = get<2>(insertions[i]);
+      K cu = vcom[u][0].first;
+      K cv = vcom[v][0].first;
+      if (cu==cv) continue;
       copraScanCommunity(vcs, vcout, u, v, w, vcom);
     }
-    auto [c, w] = copraChooseCommunity<STRICT>(x, u, vcom, vcs, vcout);
-    if (!c || c == vcom[u]) continue;
+    auto labs = copraChooseCommunity(x, u, vcom, vcs, vcout, B*vtot[u]);
+    K cu = vcom[u][0].first;
+    K cl = labs[0].first;
+    if (cl==cu) continue;
     vertices[u]  = true;
     neighbors[u] = true;
-    communities[c] = true;
+    communities[cl] = true;
   }
   x.forEachVertexKey([&](auto u) {
+    K cu = vcom[u][0].first;
     if (neighbors[u]) x.forEachEdgeKey(u, [&](auto v) { vertices[v] = true; });
-    if (communities[vcom[u]]) vertices[u] = true;
+    if (communities[cu]) vertices[u] = true;
   });
   return vertices;
 }
@@ -318,20 +327,24 @@ auto copraAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& 
  * @param x original graph
  * @param deletions edge deletions for this batch update (undirected, sorted by source vertex id)
  * @param insertions edge insertions for this batch update (undirected, sorted by source vertex id)
- * @param vcom community each vertex belongs to
+ * @param vcom community set each vertex belongs to
  * @returns flags for each vertex marking whether it is affected
  */
-template <class FLAG=bool, class G, class K, class V>
-auto copraAffectedVerticesFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& vcom) {
+template <class FLAG=bool, class G, class K, class V, size_t L>
+auto copraAffectedVerticesFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<Labelset<K, V, L>>& vcom) {
   K S = x.span();
   vector<FLAG> vertices(S);
   for (const auto& [u, v] : deletions) {
-    if (vcom[u] != vcom[v]) continue;
-    vertices[u]  = true;
+    K cu = vcom[u][0].first;
+    K cv = vcom[v][0].first;
+    if (cu!=cv) continue;
+    vertices[u] = true;
   }
   for (const auto& [u, v, w] : insertions) {
-    if (vcom[u] == vcom[v]) continue;
-    vertices[u]  = true;
+    K cu = vcom[u][0].first;
+    K cv = vcom[v][0].first;
+    if (cu==cv) continue;
+    vertices[u] = true;
   }
   return vertices;
 }

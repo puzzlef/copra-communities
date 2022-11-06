@@ -103,14 +103,15 @@ inline CopraResult<K> copraSeqStatic(const G& x, const vector<K>* q=nullptr, con
 // COPRA-SEQ-DYNAMIC-DELTA-SCREENING
 // ---------------------------------
 
-// template <bool ASYNC=false, class G, class K, class V>
-// inline CopraResult<K> copraSeqDynamicDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const CopraOptions& o={}) {
-//   K S = x.span();
-//   const vector<K>& vcom = *q;
-//   auto vaff = copraAffectedVerticesDeltaScreening<ASYNC>(x, deletions, insertions, vcom);
-//   auto fa   = [&](auto u) { return vaff[u]==true; };
-//   return copraSeq<ASYNC>(x, q, o, fa);
-// }
+template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool ASYNC=false, class G, class K, class V>
+inline CopraResult<K> copraSeqDynamicDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const CopraOptions& o={}) {
+  const size_t L = LABELS;
+  K S = x.span();
+  const vector<Labelset<K, V, L>>& vcom = *q;
+  auto vaff = copraAffectedVerticesDeltaScreening<ASYNC>(x, deletions, insertions, vcom);
+  auto fa   = [&](auto u) { return vaff[u]==true; };
+  return copraSeq<LABELS, ASYNC>(x, q, o, fa);
+}
 
 
 
@@ -118,12 +119,13 @@ inline CopraResult<K> copraSeqStatic(const G& x, const vector<K>* q=nullptr, con
 // COPRA-SEQ-DYNAMIC-FRONTIER
 // --------------------------
 
-// template <bool ASYNC=false, class G, class K, class V>
-// inline CopraResult<K> copraSeqDynamicFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const CopraOptions& o={}) {
-//   K S = x.span();
-//   const vector<K>& vcom = *q;
-//   auto vaff = copraAffectedVerticesFrontier(x, deletions, insertions, vcom);
-//   auto fa = [&](auto u) { return vaff[u]==true; };
-//   auto fp = [&](auto u) { x.forEachEdgeKey(u, [&](auto v) { vaff[v] = true; }); };
-//   return copraSeq<ASYNC>(x, q, o, fa, fp);
-// }
+template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool ASYNC=false, class G, class K, class V>
+inline CopraResult<K> copraSeqDynamicFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const CopraOptions& o={}) {
+  const size_t L = LABELS;
+  K S = x.span();
+  const vector<Labelset<K, V, L>>& vcom = *q;
+  auto vaff = copraAffectedVerticesFrontier(x, deletions, insertions, vcom);
+  auto fa = [&](auto u) { return vaff[u]==true; };
+  auto fp = [&](auto u) { x.forEachEdgeKey(u, [&](auto v) { vaff[v] = true; }); };
+  return copraSeq<LABELS, ASYNC>(x, q, o, fa, fp);
+}
