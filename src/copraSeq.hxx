@@ -26,18 +26,20 @@ using std::swap;
  * @param vcom community set each vertex belongs to (updated)
  * @param x original graph
  * @param vdom community set each vertex belonged to
+ * @param vtot total edge weight of each vertex
+ * @param B belonging coefficient threshold
  * @returns number of changed vertices
  */
-template <bool STRICT=false, class G, class K, class V, size_t L, class FA, class FP>
-K copraMoveIteration(vector<K>& vcs, vector<V>& vcout, vector<Labelset<K, V, L>>& vcom, const G& x, FA fa, FP fp) {
+template <class G, class K, class V, size_t L, class FA, class FP>
+K copraMoveIteration(vector<K>& vcs, vector<V>& vcout, vector<Labelset<K, V, L>>& vcom, const G& x, const vector<Labelset<K, V, L>>& vdom, const vector<V>& vtot, V B, FA fa, FP fp) {
   K a = K();
   x.forEachVertexKey([&](auto u) {
     if (!fa(u)) return;
-    K d = vcom[u][0].first;
+    K d = vdom[u][0].first;
     copraClearScan(vcs, vcout);
-    copraScanCommunities(vcs, vcout, x, u, vcom);
+    copraScanCommunities(vcs, vcout, x, u, vdom);
     copraSortScan(vcs, vcout);
-    vcom[u] = copraChooseCommunity(x, u, vcom, vcs, vcout, V(1));
+    vcom[u] = copraChooseCommunity(x, u, vdom, vcs, vcout, B*vtot[u]);
     K c = vcom[u][0].first;
     if (c!=d) { ++a; fp(u); }
   });
@@ -50,35 +52,38 @@ K copraMoveIteration(vector<K>& vcs, vector<V>& vcout, vector<Labelset<K, V, L>>
 // COPRA-SEQ
 // ---------
 
-template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool STRICT=false, class G, class K, class FA, class FP>
+template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool ASYNC=false, class G, class K, class FA, class FP>
 CopraResult<K> copraSeq(const G& x, const vector<K>* q, const CopraOptions& o, FA fa, FP fp) {
   using V = typename G::edge_value_type;
   const size_t L = LABELS;
   int l = 0;
   K S = x.span();
   K N = x.order();
+  V B = V(1)/LABELS;
   vector<K> vcs;
-  vector<V> vcout(S);
-  vector<Labelset<K, V, L>> vcom(S);
+  vector<V> vcout(S), vtot(S);
+  vector<Labelset<K, V, L>> vcom(S), vdom(S);
   float t = measureDuration([&]() {
-    copraInitialize(vcom, x);
+    copraVertexWeights(vtot, x);
+    copraInitialize(vdom, x);
     for (l=0; l<o.maxIterations;) {
-      K n = copraMoveIteration<STRICT>(vcs, vcout, vcom, x, fa, fp); ++l;
+      K n = copraMoveIteration(vcs, vcout, ASYNC? vdom : vcom, x, vdom, vtot, B, fa, fp); ++l;
       PRINTFD("copraSeq(): l=%d, n=%d, N=%d, n/N=%f\n", l, n, N, float(n)/N);
+      if (!ASYNC) swap(vdom, vcom);
       if (float(n)/N <= o.tolerance) break;
     }
   }, o.repeat);
-  return {copraBestCommunities(vcom), l, t};
+  return {copraBestCommunities(vdom), l, t};
 }
-template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool STRICT=false, class G, class K, class FA>
+template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool ASYNC=false, class G, class K, class FA>
 inline CopraResult<K> copraSeq(const G& x, const vector<K>* q, const CopraOptions& o, FA fa) {
   auto fp = [](auto u) {};
-  return copraSeq<LABELS, STRICT>(x, q, o, fa, fp);
+  return copraSeq<LABELS, ASYNC>(x, q, o, fa, fp);
 }
-template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool STRICT=false, class G, class K>
+template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool ASYNC=false, class G, class K>
 inline CopraResult<K> copraSeq(const G& x, const vector<K>* q, const CopraOptions& o) {
   auto fa = [](auto u) { return true; };
-  return copraSeq<LABELS, STRICT>(x, q, o, fa);
+  return copraSeq<LABELS, ASYNC>(x, q, o, fa);
 }
 
 
@@ -87,9 +92,9 @@ inline CopraResult<K> copraSeq(const G& x, const vector<K>* q, const CopraOption
 // COPRA-SEQ-STATIC
 // ----------------
 
-template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool STRICT=false, class G, class K>
+template <size_t LABELS=COPRA_MAX_MEMBERSHIP, bool ASYNC=false, class G, class K>
 inline CopraResult<K> copraSeqStatic(const G& x, const vector<K>* q=nullptr, const CopraOptions& o={}) {
-  return copraSeq<LABELS, STRICT>(x, q, o);
+  return copraSeq<LABELS, ASYNC>(x, q, o);
 }
 
 
@@ -98,13 +103,13 @@ inline CopraResult<K> copraSeqStatic(const G& x, const vector<K>* q=nullptr, con
 // COPRA-SEQ-DYNAMIC-DELTA-SCREENING
 // ---------------------------------
 
-// template <bool STRICT=false, class G, class K, class V>
+// template <bool ASYNC=false, class G, class K, class V>
 // inline CopraResult<K> copraSeqDynamicDeltaScreening(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const CopraOptions& o={}) {
 //   K S = x.span();
 //   const vector<K>& vcom = *q;
-//   auto vaff = copraAffectedVerticesDeltaScreening<STRICT>(x, deletions, insertions, vcom);
+//   auto vaff = copraAffectedVerticesDeltaScreening<ASYNC>(x, deletions, insertions, vcom);
 //   auto fa   = [&](auto u) { return vaff[u]==true; };
-//   return copraSeq<STRICT>(x, q, o, fa);
+//   return copraSeq<ASYNC>(x, q, o, fa);
 // }
 
 
@@ -113,12 +118,12 @@ inline CopraResult<K> copraSeqStatic(const G& x, const vector<K>* q=nullptr, con
 // COPRA-SEQ-DYNAMIC-FRONTIER
 // --------------------------
 
-// template <bool STRICT=false, class G, class K, class V>
+// template <bool ASYNC=false, class G, class K, class V>
 // inline CopraResult<K> copraSeqDynamicFrontier(const G& x, const vector<tuple<K, K>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>* q, const CopraOptions& o={}) {
 //   K S = x.span();
 //   const vector<K>& vcom = *q;
 //   auto vaff = copraAffectedVerticesFrontier(x, deletions, insertions, vcom);
 //   auto fa = [&](auto u) { return vaff[u]==true; };
 //   auto fp = [&](auto u) { x.forEachEdgeKey(u, [&](auto v) { vaff[v] = true; }); };
-//   return copraSeq<STRICT>(x, q, o, fa, fp);
+//   return copraSeq<ASYNC>(x, q, o, fa, fp);
 // }
