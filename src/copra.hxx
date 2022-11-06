@@ -1,4 +1,5 @@
 #pragma once
+#include <limits>
 #include <utility>
 #include <vector>
 #include "_main.hxx"
@@ -6,6 +7,7 @@
 using std::pair;
 using std::tuple;
 using std::vector;
+using std::numeric_limits;
 using std::make_pair;
 using std::move;
 using std::get;
@@ -15,6 +17,10 @@ using std::get;
 
 // COPRA-OPTIONS
 // -------------
+
+// Maximum community memberships per vertex.
+#define COPRA_MAX_MEMBERSHIP 8
+
 
 struct CopraOptions {
   int   repeat;
@@ -47,17 +53,40 @@ struct CopraResult {
 
 
 
+// LABELSET
+// --------
+
+template <class K, class V, size_t L>
+using Labelset = array<pair<K, V>, L>;
+
+
+
+
 // COPRA-INITIALIZE
 // ----------------
 
 /**
- * Initialize communities such that each vertex is its own community.
- * @param vcom community each vertex belongs to (updated)
+ * Find the total edge weight of each vertex.
+ * @param vtot total edge weight of each vertex (updated)
  * @param x original graph
  */
-template <class G, class K>
-inline void copraInitialize(vector<K>& vcom, const G& x) {
-  x.forEachVertexKey([&](auto u) { vcom[u] = u; });
+template <class G, class V>
+void copraVertexWeights(vector<V>& vtot, const G& x) {
+  x.forEachVertexKey([&](auto u) {
+    vtot[u] = V();
+    x.forEachEdge(u, [&](auto v, auto w) { vtot[u] += w; });
+  });
+}
+
+
+/**
+ * Initialize communities such that each vertex is its own community.
+ * @param vcom community set each vertex belongs to (updated)
+ * @param x original graph
+ */
+template <class G, class K, class V, size_t L>
+inline void copraInitialize(vector<Labelset<K, V, L>>& vcom, const G& x) {
+  x.forEachVertexKey([&](auto u) { vcom[u] = {make_pair(u, V(1))}; });
 }
 
 
@@ -73,12 +102,12 @@ inline void copraInitialize(vector<K>& vcom, const G& x) {
  * @param u given vertex
  * @param v outgoing edge vertex
  * @param w outgoing edge weight
- * @param vcom community each vertex belongs to
+ * @param vcom community set each vertex belongs to
  */
-template <bool SELF=false, class K, class V>
-inline void copraScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const vector<K>& vcom) {
+template <bool SELF=false, class K, class V, size_t L>
+inline void copraScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const vector<Labelset<K, V, L>>& vcom) {
   if (!SELF && u==v) return;
-  K c = vcom[v];
+  K c = vcom[v][0].first;
   if (!vcout[c]) vcs.push_back(c);
   vcout[c] += w;
 }
@@ -90,10 +119,10 @@ inline void copraScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, 
  * @param vcout total edge weight from vertex u to community C (updated)
  * @param x original graph
  * @param u given vertex
- * @param vcom community each vertex belongs to
+ * @param vcom community set each vertex belongs to
  */
-template <bool SELF=false, class G, class K, class V>
-inline void copraScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K u, const vector<K>& vcom) {
+template <bool SELF=false, class G, class K, class V, size_t L>
+inline void copraScanCommunities(vector<K>& vcs, vector<V>& vcout, const G& x, K u, const vector<Labelset<K, V, L>>& vcom) {
   x.forEachEdge(u, [&](auto v, auto w) { copraScanCommunity<SELF>(vcs, vcout, u, v, w, vcom); });
 }
 
@@ -120,9 +149,9 @@ inline void copraClearScan(vector<K>& vcs, vector<V>& vcout) {
  * @param vcout total edge weight from vertex u to community C
  * @returns [best community, best edge weight to community]
  */
-template <bool STRICT=false, class G, class K, class V>
-inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<K>& vcom, const vector<K>& vcs, const vector<V>& vcout) {
-  K d = vcom[u];
+template <bool STRICT=false, class G, class K, class V, size_t L>
+inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<Labelset<K, V, L>>& vcom, const vector<K>& vcs, const vector<V>& vcout) {
+  K d = vcom[u][0].first;
   K cmax = K();
   V wmax = V();
   for (K c : vcs) {
@@ -130,6 +159,21 @@ inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<K>& vcom, c
     if (vcout[c]>wmax || (!STRICT && vcout[c]==wmax && (c & 2))) { cmax = c; wmax = vcout[c]; }
   }
   return make_pair(cmax, wmax);
+}
+
+
+
+
+// COPRA-BEST-COMMUNITIES
+// ----------------------
+
+template <class K, class V, size_t L>
+inline vector<K> copraBestCommunities(const vector<Labelset<K, V, L>>& vcom) {
+  K S = vcom.size();
+  vector<K> a(S);
+  for (size_t i=0; i<S; ++i)
+    a[i] = vcom[i][0].first;
+  return a;
 }
 
 
