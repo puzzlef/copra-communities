@@ -108,7 +108,7 @@ template <bool SELF=false, class K, class V, size_t L>
 inline void copraScanCommunity(vector<K>& vcs, vector<V>& vcout, K u, K v, V w, const vector<Labelset<K, V, L>>& vcom) {
   if (!SELF && u==v) return;
   for (const auto& [c, b] : vcom[v]) {
-    if (!b) break;
+    if (!b) break;  // TODO? b -> c
     if (!vcout[c]) vcs.push_back(c);
     vcout[c] += w*b;
   }
@@ -166,13 +166,19 @@ inline void copraClearScan(vector<K>& vcs, vector<V>& vcout) {
  */
 template <bool STRICT=false, class G, class K, class V, size_t L>
 inline pair<K, V> copraChooseCommunity(const G& x, K u, const vector<Labelset<K, V, L>>& vcom, const vector<K>& vcs, const vector<V>& vcout, V W) {
-  K cmax = K();
-  V wmax = V();
+  K n = K(); V w = V();
+  Labelset<K, V, L> labs;
+  // if (vcs.empty()) return make_pair(u, V(1));  // TODO? enable
+  // 1. Find labels above threshold, or best below threshold.
   for (K c : vcs) {
-    // Do some basic randomization if multiple labels have max weight.
-    if (vcout[c]>wmax || (!STRICT && vcout[c]==wmax && (c & 2))) { cmax = c; wmax = vcout[c]; }
+    if (n>0 && vcout[c]<W) break;
+    labs[n++] = {c, vcout[c]};
+    w += vcout[c];
   }
-  return make_pair(cmax, wmax);
+  // 2. Normalize labels, such that belonging coefficient sums to 1.
+  for (K i=0; i<n; ++i)
+    labs[i].second /= w;
+  return labs[0];
 }
 
 
