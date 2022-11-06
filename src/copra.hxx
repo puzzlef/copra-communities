@@ -25,7 +25,7 @@ struct CopraOptions {
   int   maxMembership;
   int   maxIterations;
 
-  CopraOptions(int repeat=1, float tolerance=0.05, int maxMembership=8, int maxIterations=20) :
+  CopraOptions(int repeat=1, float tolerance=0.05, int maxMembership=COPRA_LABELS, int maxIterations=20) :
   repeat(repeat), tolerance(tolerance), maxMembership(maxMembership), maxIterations(maxIterations) {}
 };
 
@@ -54,7 +54,7 @@ struct CopraResult {
 // LABELSET
 // --------
 
-template <class K, class V, size_t L=8>
+template <class K, class V, size_t L=COPRA_LABELS>
 using Labelset = array<pair<K, V>, L>;
 
 
@@ -84,7 +84,7 @@ void copraVertexWeights(vector<V>& vtot, const G& x) {
  */
 template <class G, class K, class V, size_t L>
 inline void copraInitialize(vector<Labelset<K, V, L>>& vcom, const G& x) {
-  x.forEachVertexKey([&](auto u) { vcom[u] = {{u, V(1)}}; });
+  x.forEachVertexKey([&](auto u) { vcom[u] = {make_pair(u, V(1))}; });
 }
 
 
@@ -253,7 +253,7 @@ auto copraAffectedVerticesDeltaScreening(const G& x, const vector<tuple<K, K>>& 
     if (cl==cu) continue;
     vertices[u]  = true;
     neighbors[u] = true;
-    communities[c] = true;
+    communities[cl] = true;
   }
   x.forEachVertexKey([&](auto u) {
     K cu = vcom[u][0].first;
