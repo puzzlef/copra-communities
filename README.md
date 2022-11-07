@@ -1,64 +1,79 @@
-Multi-threaded OpenMP-based Raghavan Albert Kumara ([RAK]) algorithm for
+Single-threaded CPU-based Community OVerlap PRopagation Algorithm ([COPRA]) for
 [community detection].
 
-`TODO`
+This is an implementation of a label-propagation based community detection
+algorithm called **Community OVerlap PRopagation Algorithm (COPRA)**. Unlike
+**RAK**, this algorithm uses *multiple labels per vertex*, with each label having an
+associated *belonging coefficient* (which sums to `1`). The algorithm is as follows.
 
-This is an implementation of a popular label-propagation based community
-detection algorithm called **Raghavan Albert Kumara (RAK)**. Here, every node is
-initialized with a unique label and at every step each node adopts the label
-that most of its neighbors currently have. In this iterative process densely
-connected groups of nodes form a consensus on a unique label to form
-communities.
+1. Each vertex initializes as its own community (belonging=1).
+2. Each iteration, a vertex collects labels from its neighborhood.
+3. I excludes a vertex's own labels, although not explicitly mentioned in paper.
+4. The collected labels are scaled by edge weights for weighted graph.
+5. Each vertex picks labels above a certain threshold.
+6. This threshold is inversely proportional to the max. number of labels.
+7. If all labels are below threshold, pick a random best label.
+8. I make a vertex join its own community if it has no labels (not mentioned).
+9. Selected labels are normalized such that belonging coefficient sums to 1.
+10. Repeat from 2 until convergence.
 
-When there exist multiple communities with max weight, we randomly pick one of
-them (**non-strict** approach), or pick only the first of them (**strict** approach).
-The algorithm converges when `n%` of vertices dont change their community
-membership (*tolerance*).
+The authors of this paper mention to use a *mimimum vertices per community count*
+to detect convergence. However i do not find it to be helpful. I instead use a
+similar convergence condition as *RAK*, that is **count the number of vertices that**
+**change thier best label**. Once this count falls below a certain fraction
+(tolerance), i consider the algorithm to have converged. The authors also
+mention using a *sychrounous* version of the algorithm, where labels of each
+vertex is dependent only upon labels in previous iteration. However, i find
+**asynchronous** approach to be converge faster (labels of each vertex can be
+dependent upon labels in current iteration). As we focus of finding disjoint
+communities, i consider the **best label of each vertex** as the final result.
 
-We continue with OpenMP implementation of RAK algorithm for community detection.
-Each thread is given a *separate* hashtable, which it can use for choosing the
-most popular label among its neighbors (by weight). I initially packed the
-hashtables (for each thread) contiguously on a vector. However, i observed that
-*allocating them separately* given almost *2x* performance (by using pointer to
-vectors). OpenMP schedule is `auto` now, we can later choose the best if we
-need.
+[![](https://i.imgur.com/6UOli7q.png)][sheetp]
 
-[![](https://i.imgur.com/zLLrbnj.png)][sheetp]
-
-<br>
-<br>
-
-Similar to [previous experiment], we adjust *tolerance* from `0.1` to `0.0001` and
-compare the sequential and OpenMP implementations (non-strict, strict
-approaches).
-
-[![](https://i.imgur.com/10vwdJf.png)][sheetp]
-
-[![](https://i.imgur.com/uhgVh1A.png)][sheetp]
-
-[![](https://i.imgur.com/hH3sKyS.png)][sheetp]
+[![](https://i.imgur.com/7RUqa6l.png)][sheetp]
 
 <br>
 <br>
 
-On average, **OpenMP-based strict RAK appears to be better**, both in terms of
-time and modularity (2X with 1->). Also we generally see it do better than
-*sequential* approaches (possibly due to better randomization). For a
-*tolerance* of `0.05`, *OpenMP-based strict RAK* (using *12* threads) is *6.75x*
-faster than *sequential non-strict RAK*.
+I vary the **tolerance** from `0.1` to `0.0001` (as with [RAK]), and adjust the **max.**
+**number of labels** from `1` to `32`.
 
-However, OpenMP implementations do not achieve better quality for `coAuthors*`
-graphs. For *social networks*, OpenMP-based non-strict RAK achieves better
-modularity than the strict version. Please see [previous experiment] for difference
-between strict and non-strict versions. Given below is modularity on
-`soc-LiveJournal1` graph.
+[![](https://i.imgur.com/70hxdGa.png)][sheetp]
 
-[![](https://i.imgur.com/4GMolxZ.png)][sheetp]
+[![](https://i.imgur.com/sG6ASLc.png)][sheetp]
+
+[![](https://i.imgur.com/2NnJXny.png)][sheetp]
 
 <br>
 <br>
 
-As brefore, it seems to me a *tolerance* of `0.05` would be a good choice.
+On average, it *seems that using a single label is best* in terms of time as well
+as modularity. This is particulary true in case of road networks, but *not so in*
+*case of other classes of graphs* (web graphs, social networks, collaboration
+networks). For example, *web graphs* such as `web-Stanford` and `web-BerkStan` achieve
+best modularity with **max. labels** of `8`, `web-Google` does best with **max. labels** of
+`32`, and `web-NotreDame` does best with **max. labels** of `16`. **Max. labels** of `4`-`16`
+would be a good choice for such graphs.
+
+[![](https://i.imgur.com/zqq3eJO.png)][sheetp]
+
+<br>
+<br>
+
+In addition it seems that on average, *making the tolerance tighter than 0.01 has*
+*no beneficial effect on modularity*. However, *tighter tolerance does not help*
+*with* graphs such as `web-NotreDame`, `coAuthorsDBLP`, and *social networks*. It seems
+a **tolerance** of `0.01` would be a good choice on average.
+
+[![](https://i.imgur.com/4rd819J.png)][sheetp]
+
+<br>
+<br>
+
+Both **RAK** and **COPRA** approaches can obtain *disconnected communities*. This issue
+can be resolved by splitting such communities into separate communities in a
+*post-processing step*. I do **not** do that here. We may do it when comparing these
+approaches.
 
 All outputs are saved in a [gist] and a small part of the output is listed here.
 Some [charts] are also included below, generated from [sheets]. The input data
@@ -67,6 +82,7 @@ This experiment was done with guidance from [Prof. Kishore Kothapalli] and
 [Prof. Dip Sankar Banerjee].
 
 
+[COPRA]: https://arxiv.org/abs/0910.5516
 [RAK]: https://arxiv.org/abs/0709.2938
 [community detection]: https://en.wikipedia.org/wiki/Community_search
 [previous experiment]: https://github.com/puzzlef/rak-communities-seq
@@ -85,37 +101,19 @@ $ ...
 # Loading graph /home/subhajit/data/web-Stanford.mtx ...
 # order: 281903 size: 2312497 [directed] {}
 # order: 281903 size: 3985272 [directed] {} (symmetricize)
-# OMP_NUM_THREADS=12
 # [-0.000497 modularity] noop
-# [00150.956 ms; 0003 iters.; 0.872759998 modularity] rakSeqStatic       {tolerance=1e-01}
-# [00152.820 ms; 0003 iters.; 0.847129285 modularity] rakSeqStaticStrict {tolerance=1e-01}
-# [00021.234 ms; 0003 iters.; 0.872025967 modularity] rakOmpStatic       {tolerance=1e-01}
-# [00021.151 ms; 0003 iters.; 0.847373843 modularity] rakOmpStaticStrict {tolerance=1e-01}
-# [00149.791 ms; 0003 iters.; 0.872759998 modularity] rakSeqStatic       {tolerance=5e-02}
-# [00147.402 ms; 0003 iters.; 0.847129285 modularity] rakSeqStaticStrict {tolerance=5e-02}
-# [00020.572 ms; 0003 iters.; 0.871711493 modularity] rakOmpStatic       {tolerance=5e-02}
-# [00020.510 ms; 0003 iters.; 0.847401798 modularity] rakOmpStaticStrict {tolerance=5e-02}
-# [00236.676 ms; 0005 iters.; 0.876379907 modularity] rakSeqStatic       {tolerance=1e-02}
-# [00234.186 ms; 0005 iters.; 0.853610516 modularity] rakSeqStaticStrict {tolerance=1e-02}
-# [00030.638 ms; 0005 iters.; 0.875127017 modularity] rakOmpStatic       {tolerance=1e-02}
-# [00030.697 ms; 0005 iters.; 0.852154553 modularity] rakOmpStaticStrict {tolerance=1e-02}
-# [00284.453 ms; 0006 iters.; 0.877100408 modularity] rakSeqStatic       {tolerance=5e-03}
-# [00277.874 ms; 0006 iters.; 0.854387999 modularity] rakSeqStaticStrict {tolerance=5e-03}
-# [00035.626 ms; 0006 iters.; 0.876359046 modularity] rakOmpStatic       {tolerance=5e-03}
-# [00035.454 ms; 0006 iters.; 0.853212833 modularity] rakOmpStaticStrict {tolerance=5e-03}
-# [00366.719 ms; 0008 iters.; 0.877606571 modularity] rakSeqStatic       {tolerance=1e-03}
-# [00407.965 ms; 0009 iters.; 0.855403066 modularity] rakSeqStaticStrict {tolerance=1e-03}
-# [00049.822 ms; 0009 iters.; 0.876784205 modularity] rakOmpStatic       {tolerance=1e-03}
-# [00055.832 ms; 0010 iters.; 0.853845000 modularity] rakOmpStaticStrict {tolerance=1e-03}
-# [00448.478 ms; 0010 iters.; 0.877725899 modularity] rakSeqStatic       {tolerance=5e-04}
-# [00575.903 ms; 0013 iters.; 0.856024683 modularity] rakSeqStaticStrict {tolerance=5e-04}
-# [00064.744 ms; 0011 iters.; 0.876972854 modularity] rakOmpStatic       {tolerance=5e-04}
-# [00069.341 ms; 0013 iters.; 0.854331434 modularity] rakOmpStaticStrict {tolerance=5e-04}
-# [00616.509 ms; 0014 iters.; 0.877830148 modularity] rakSeqStatic       {tolerance=1e-04}
-# [00742.345 ms; 0017 iters.; 0.856140256 modularity] rakSeqStaticStrict {tolerance=1e-04}
-# [00102.798 ms; 0020 iters.; 0.877253771 modularity] rakOmpStatic       {tolerance=1e-04}
-# [00098.093 ms; 0019 iters.; 0.854501545 modularity] rakOmpStaticStrict {tolerance=1e-04}
-#
+# [00206.635 ms; 0003 iters.; 0.836576819 modularity] copraSeqStatic {labels=01, tolerance=1e-01}
+# [00248.339 ms; 0003 iters.; 0.838712633 modularity] copraSeqStatic {labels=02, tolerance=1e-01}
+# [00369.730 ms; 0003 iters.; 0.875163972 modularity] copraSeqStatic {labels=04, tolerance=1e-01}
+# [00550.753 ms; 0003 iters.; 0.878541648 modularity] copraSeqStatic {labels=08, tolerance=1e-01}
+# [00675.437 ms; 0003 iters.; 0.881162941 modularity] copraSeqStatic {labels=16, tolerance=1e-01}
+# [01130.822 ms; 0003 iters.; 0.866800904 modularity] copraSeqStatic {labels=32, tolerance=1e-01}
+# [00206.794 ms; 0003 iters.; 0.836576819 modularity] copraSeqStatic {labels=01, tolerance=5e-02}
+# [00243.418 ms; 0003 iters.; 0.838712633 modularity] copraSeqStatic {labels=02, tolerance=5e-02}
+# [00475.227 ms; 0004 iters.; 0.887068212 modularity] copraSeqStatic {labels=04, tolerance=5e-02}
+# [00834.529 ms; 0005 iters.; 0.892077446 modularity] copraSeqStatic {labels=08, tolerance=5e-02}
+# [01010.437 ms; 0005 iters.; 0.897701085 modularity] copraSeqStatic {labels=16, tolerance=5e-02}
+# [01706.960 ms; 0005 iters.; 0.885300398 modularity] copraSeqStatic {labels=32, tolerance=5e-02}
 # ...
 ```
 
@@ -125,6 +123,7 @@ $ ...
 
 ## References
 
+- [Finding overlapping communities in networks by label propagation; Steve Gregory (2010)](https://iopscience.iop.org/article/10.1088/1367-2630/12/10/103018)
 - [Near linear time algorithm to detect community structures in large-scale networks; Usha Nandini Raghavan et al. (2007)](https://arxiv.org/abs/0709.2938)
 - [The University of Florida Sparse Matrix Collection; Timothy A. Davis et al. (2011)](https://doi.org/10.1145/2049662.2049663)
 - [How to import VSCode keybindings into Visual Studio?](https://stackoverflow.com/a/62417446/1413259)
@@ -135,11 +134,11 @@ $ ...
 <br>
 
 
-[![](https://i.imgur.com/7QLfaW3.jpg)](https://www.youtube.com/watch?v=IwiYQILYXDQ)<br>
+[![](https://i.imgur.com/7GLy9tb.jpg)](https://www.youtube.com/watch?v=L-ZBWLYGSuY)<br>
 [![ORG](https://img.shields.io/badge/org-puzzlef-green?logo=Org)](https://puzzlef.github.io)
 
 
-[gist]: https://gist.github.com/wolfram77/d4503226d989c2752210df65ea12ec4d
-[charts]: https://imgur.com/a/cYzo2Ai
-[sheets]: https://docs.google.com/spreadsheets/d/1D7EpBMmnGlJlk0uUEqUTYWm5Gxc-AXVhSfxbDA56y8Y/edit?usp=sharing
-[sheetp]: https://docs.google.com/spreadsheets/d/e/2PACX-1vRLy5tronSINq10-myRK8M7ykPKwXF0AwwvssViiqbu3va6USoVncYppn6RzvxNqGw8ev2gIDQ1G7wA/pubhtml
+[gist]: https://gist.github.com/wolfram77/417cfff0ee5e5b233056283fc42f78ac
+[charts]: https://imgur.com/a/zmjeCyw
+[sheets]: https://docs.google.com/spreadsheets/d/1jNoY9zpiMpmFuRLMSTLY--XArqXmH0oQbguMtWv_j9s/edit?usp=sharing
+[sheetp]: https://docs.google.com/spreadsheets/d/e/2PACX-1vQ9ym6LJBJZkwYEYk3sjAPJEt0QT67UZCxmnnOibZYYREwGXUmXL4LvurXAme5MvHlKMXaX-DOLX9Js/pubhtml
